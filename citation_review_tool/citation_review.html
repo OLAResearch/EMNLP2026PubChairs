@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Citation Hallucination Annotator</title>
+<style>
+:root {
+  --bg: #f6f6f4; --panel: #ffffff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e2e2de;
+  --accent: #2f5bd3; --accent-soft: #e8eefc;
+  --bad: #c0392b; --bad-soft: #fbe9e7; --warn: #b7791f; --warn-soft: #fdf3e1;
+  --ok: #2e7d4f; --ok-soft: #e6f4ec; --unk: #7a7a80; --unk-soft: #efefef;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17181a; --panel: #1f2023; --ink: #ececee; --muted: #9a9aa2; --line: #33343a;
+    --accent: #7c9cff; --accent-soft: #263154;
+    --bad: #ff7a6b; --bad-soft: #3d2320; --warn: #f0b95a; --warn-soft: #3a2f1a;
+    --ok: #6fd39a; --ok-soft: #1c3527; --unk: #a0a0a8; --unk-soft: #2a2b30;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--accent); }
+header.top { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+header.top h1 { font-size: 16px; margin: 0 8px 0 0; font-weight: 650; }
+.stat { color: var(--muted); font-size: 13px; }
+.grow { flex: 1; }
+.btn { border: 1px solid var(--line); background: var(--panel); padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+input[type=text], select, textarea { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 5px 8px; }
+.layout { display: grid; grid-template-columns: 320px 1fr; height: calc(100% - 53px); }
+aside { border-right: 1px solid var(--line); overflow: auto; background: var(--panel); }
+.filters { padding: 10px; display: grid; gap: 6px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); z-index: 1; }
+.plist { list-style: none; margin: 0; padding: 0; }
+.plist li { padding: 8px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.plist li:hover { background: var(--accent-soft); }
+.plist li.active { background: var(--accent-soft); box-shadow: inset 3px 0 var(--accent); }
+.plist .pt { font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.plist .pm { display: flex; gap: 6px; align-items: center; margin-top: 3px; font-size: 12px; color: var(--muted); }
+.bar { flex: 1; height: 4px; background: var(--unk-soft); border-radius: 2px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--ok); }
+main { overflow: auto; padding: 16px 20px 80px; }
+.paperhead { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+.paperhead h2 { margin: 0 0 4px; font-size: 18px; }
+.paperhead .meta { color: var(--muted); font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; }
+.paperverdict { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+.paperverdict textarea { flex: 1; min-width: 240px; min-height: 34px; resize: vertical; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+.card.focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.card.lab-hallucinated { border-left: 4px solid var(--bad); }
+.card.lab-likely { border-left: 4px solid var(--warn); }
+.card.lab-real { border-left: 4px solid var(--ok); }
+.card.lab-unsure { border-left: 4px solid var(--unk); }
+.chead { display: flex; gap: 10px; align-items: baseline; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.cid { font-weight: 650; color: var(--muted); white-space: nowrap; }
+.ctext { flex: 1; font-family: ui-serif, Georgia, serif; font-size: 14.5px; }
+.links { display: flex; gap: 10px; flex-wrap: wrap; padding: 6px 14px; font-size: 12.5px; border-bottom: 1px solid var(--line); }
+table.cmp { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+table.cmp th, table.cmp td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; word-break: break-word; }
+table.cmp th { color: var(--muted); font-weight: 600; font-size: 12px; }
+table.cmp col.f { width: 110px; } table.cmp col.m { width: 130px; }
+td.fname { color: var(--muted); }
+.badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11.5px; font-weight: 600; cursor: help; white-space: nowrap; }
+.b-match { background: var(--ok-soft); color: var(--ok); }
+.b-partial_match, .b-weak_match { background: var(--warn-soft); color: var(--warn); }
+.b-no_match { background: var(--bad-soft); color: var(--bad); }
+.b-unknown, .b-none { background: var(--unk-soft); color: var(--unk); }
+.nosrc { padding: 10px 14px; color: var(--muted); font-style: italic; }
+.annot { display: flex; gap: 8px; padding: 10px 14px; flex-wrap: wrap; align-items: flex-start; background: color-mix(in srgb, var(--bg) 50%, var(--panel)); }
+.lab { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
+.lab kbd { font-size: 10.5px; color: var(--muted); margin-left: 4px; font-family: ui-monospace, monospace; }
+.lab[data-v=hallucinated].on { background: var(--bad); border-color: var(--bad); color: #fff; }
+.lab[data-v=likely].on { background: var(--warn); border-color: var(--warn); color: #fff; }
+.lab[data-v=real].on { background: var(--ok); border-color: var(--ok); color: #fff; }
+.lab[data-v=unsure].on { background: var(--unk); border-color: var(--unk); color: #fff; }
+.lab.on kbd { color: inherit; }
+.annot textarea { flex: 1; min-width: 220px; min-height: 32px; resize: vertical; font-size: 13px; }
+.drop { max-width: 560px; margin: 12vh auto; text-align: center; border: 2px dashed var(--line); border-radius: 12px; padding: 40px 24px; background: var(--panel); }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.help { color: var(--muted); font-size: 12px; }
+.hidden { display: none !important; }
+@media (max-width: 800px) {
+  .layout { grid-template-columns: 1fr; height: auto; }
+  aside { max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  main { padding: 12px 16px 60px; }
+  table.cmp col.f { width: 70px; } table.cmp col.m { width: 90px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Citation Hallucination Annotator</h1>
+  <span class="stat" id="stat"></span>
+  <span class="grow"></span>
+  <input type="text" id="annotator" placeholder="Annotator name" style="width:150px">
+  <label class="btn" title="Load a previously exported annotations CSV to resume">Import annotations<input type="file" id="importFile" accept=".csv,.json" hidden></label>
+  <button class="btn primary" id="exportBtn">Export CSV</button>
+</header>
+
+<div id="loader" class="drop">
+  <h2 style="margin-top:0">Load flagged citations</h2>
+  <p>Load the flagged-citation results exported from GPTZero (CSV). Drop the file here, or choose it.</p>
+  <label class="btn primary">Choose CSV<input type="file" id="csvFile" accept=".csv" hidden></label>
+  <p class="help">Everything stays in this browser. Annotations autosave to local storage; use Export CSV to keep a copy.</p>
+</div>
+
+<div class="layout hidden" id="app">
+  <aside>
+    <div class="filters">
+      <input type="text" id="q" placeholder="Search paper id, title, citation…">
+      <select id="fstatus">
+        <option value="all">All papers</option>
+        <option value="todo">Papers with unlabeled citations</option>
+        <option value="done">Fully labeled papers</option>
+        <option value="hasbad">Papers with confirmed hallucinations</option>
+      </select>
+      <div class="help">Keys: <b>j/k</b> next/prev citation · <b>n/p</b> next/prev paper · <b>1</b> hallucinated · <b>2</b> likely · <b>3</b> real · <b>4</b> unsure · <b>0</b> clear</div>
+    </div>
+    <ul class="plist" id="plist"></ul>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<script>
+const STORE_KEY = 'citation-hallu-annotations-v1';
+const LABELS = [
+  { v: 'hallucinated', t: 'Hallucinated', k: '1' },
+  { v: 'likely', t: 'Likely hallucinated', k: '2' },
+  { v: 'real', t: 'Real (false positive)', k: '3' },
+  { v: 'unsure', t: 'Unsure', k: '4' },
+];
+const VERDICTS = ['', 'No action', 'Minor: ask authors to fix', 'Serious: escalate', 'Needs second look'];
+const FIELDS = [
+  ['title', 'Title'], ['authors', 'Authors'], ['publication_date', 'Date'], ['publisher', 'Venue'],
+  ['url', 'URL'], ['doi', 'DOI'], ['arxiv_id', 'arXiv'],
+];
+
+let rows = [], header = [], papers = [], state = { cites: {}, papers: {}, annotator: '' };
+let curPaper = 0, curCite = 0;
+
+// ---------- storage ----------
+function load() { try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s) state = Object.assign(state, s); } catch (e) {} }
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
+const ckey = r => r.paper_id + '#' + r.citation_id;
+
+// ---------- CSV ----------
+function parseCSV(text) {
+  const out = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; }
+      else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(f); f = ''; if (row.length > 1 || row[0] !== '') out.push(row); row = [];
+    } else f += c;
+  }
+  if (f !== '' || row.length) { row.push(f); out.push(row); }
+  return out;
+}
+const csvCell = v => { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+
+function ingest(text) {
+  const t = parseCSV(text.replace(/^﻿/, ''));
+  header = t[0];
+  rows = t.slice(1).map(a => Object.fromEntries(header.map((h, i) => [h, a[i] ?? ''])));
+  const byId = new Map();
+  for (const r of rows) {
+    if (!byId.has(r.paper_id)) byId.set(r.paper_id, { id: r.paper_id, title: r.paper_title, doc: r.document_name, scan: r.citation_scan_url, cites: [] });
+    byId.get(r.paper_id).cites.push(r);
+  }
+  papers = [...byId.values()];
+  papers.forEach(p => p.cites.sort((a, b) => (+a.citation_id) - (+b.citation_id)));
+  document.getElementById('loader').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('annotator').value = state.annotator || '';
+  renderList(); selectPaper(0);
+}
+
+// ---------- helpers ----------
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function parseList(s) {
+  if (!s) return '';
+  // Python list repr: ['A', "O'Brien"]
+  const m = s.match(/'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g);
+  return m ? m.map(x => x.slice(1, -1)).join(', ') : s;
+}
+function fmtCitation(t) {
+  // Strip the extractor's "[title (url)](#)" markdown and bullets; keep italics.
+  let s = esc(t.replace(/^\s*-\s*/, '').replace(/\\\\?_/g, '_'));
+  s = s.replace(/\[([^\]]*?)\]\(#\)/g, (_, inner) => inner.replace(/\s*\((https?:[^)\s]+)\)\s*$/, ' <a href="$1" target="_blank" rel="noopener">[link]</a>'));
+  s = s.replace(/\*([^*]+)\*/g, '<i>$1</i>');
+  return s;
+}
+function fieldVal(r, side, f) {
+  const v = r[side + '_' + f];
+  if (f === 'authors') return esc(parseList(v));
+  if (!v) return '<span class="help">—</span>';
+  if (f === 'url') return `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v.length > 70 ? v.slice(0, 70) + '…' : v)}</a>`;
+  if (f === 'doi') return `<a href="https://doi.org/${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>`;
+  if (f === 'arxiv_id') return `<a href="https://arxiv.org/abs/${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>`;
+  return esc(v);
+}
+const labelOf = r => (state.cites[ckey(r)] || {}).label || '';
+function paperProgress(p) {
+  const done = p.cites.filter(r => labelOf(r)).length;
+  const bad = p.cites.filter(r => ['hallucinated', 'likely'].includes(labelOf(r))).length;
+  return { done, bad, n: p.cites.length };
+}
+
+// ---------- rendering ----------
+function visiblePapers() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const fs = document.getElementById('fstatus').value;
+  return papers.filter(p => {
+    const pr = paperProgress(p);
+    if (fs === 'todo' && pr.done === pr.n) return false;
+    if (fs === 'done' && pr.done < pr.n) return false;
+    if (fs === 'hasbad' && !p.cites.some(r => labelOf(r) === 'hallucinated')) return false;
+    if (!q) return true;
+    return (p.id + ' ' + p.title + ' ' + p.cites.map(r => r.citation_text).join(' ')).toLowerCase().includes(q);
+  });
+}
+function renderList() {
+  const vis = visiblePapers();
+  document.getElementById('plist').innerHTML = vis.map(p => {
+    const pr = paperProgress(p), i = papers.indexOf(p);
+    const v = (state.papers[p.id] || {}).verdict;
+    return `<li data-i="${i}" class="${i === curPaper ? 'active' : ''}">
+      <div class="pt">${esc(p.title)}</div>
+      <div class="pm"><code>${esc(p.id)}</code><span>${pr.done}/${pr.n}</span>
+        <span class="bar"><i style="width:${100 * pr.done / pr.n}%"></i></span>
+        ${pr.bad ? `<span class="badge b-no_match">${pr.bad} bad</span>` : ''}
+      </div>${v ? `<div class="pm">${esc(v)}</div>` : ''}</li>`;
+  }).join('') || '<li class="help">No papers match.</li>';
+  const all = rows.length, done = rows.filter(r => labelOf(r)).length;
+  const hall = rows.filter(r => labelOf(r) === 'hallucinated').length;
+  const fp = rows.filter(r => labelOf(r) === 'real').length;
+  document.getElementById('stat').textContent =
+    `${papers.length} papers · ${all} flagged citations · ${done} labeled · ${hall} hallucinated · ${fp} false positives`;
+}
+
+function renderPaper() {
+  const p = papers[curPaper]; if (!p) return;
+  const ps = state.papers[p.id] || {};
+  const pr = paperProgress(p);
+  const main = document.getElementById('main');
+  main.innerHTML = `
+  <div class="paperhead">
+    <h2>${esc(p.title)}</h2>
+    <div class="meta"><span>ID <code>${esc(p.id)}</code></span><span>${esc(p.doc)}</span>
+      <span>${pr.done}/${pr.n} labeled</span>
+      <a href="https://openreview.net/forum?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">OpenReview</a>
+      ${p.scan ? `<a href="${esc(p.scan)}" target="_blank" rel="noopener">GPTZero scan</a>` : ''}</div>
+    <div class="paperverdict">
+      <b>Paper verdict</b>
+      <select data-pv="verdict">${VERDICTS.map(v => `<option ${v === (ps.verdict || '') ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>
+      <textarea data-pv="note" placeholder="Paper-level notes">${esc(ps.note || '')}</textarea>
+    </div>
+  </div>
+  ${p.cites.map((r, j) => renderCite(r, j)).join('')}`;
+  focusCite(Math.min(curCite, p.cites.length - 1), false);
+}
+
+function renderCite(r, j) {
+  const a = state.cites[ckey(r)] || {};
+  const hasSrc = r.source_title || r.source_url;
+  const title = r.citation_title || '';
+  const links = [
+    title && `<a target="_blank" rel="noopener" href="https://scholar.google.com/scholar?q=${encodeURIComponent('"' + title + '"')}">Google Scholar</a>`,
+    title && `<a target="_blank" rel="noopener" href="https://www.semanticscholar.org/search?q=${encodeURIComponent(title)}">Semantic Scholar</a>`,
+    title && `<a target="_blank" rel="noopener" href="https://dblp.org/search?q=${encodeURIComponent(title)}">DBLP</a>`,
+    title && `<a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent('"' + title + '"')}">Google</a>`,
+    r.citation_scan_url && `<a target="_blank" rel="noopener" href="${esc(r.citation_scan_url)}">GPTZero scan</a>`,
+  ].filter(Boolean).join('');
+  const body = hasSrc ? `
+    <table class="cmp"><colgroup><col class="f"><col><col><col class="m"></colgroup>
+      <tr><th>Field</th><th>As cited</th><th>Closest source found</th><th>Match</th></tr>
+      ${FIELDS.map(([f, name]) => {
+        const m = r[f + '_match'], just = r[f + '_match_justification'];
+        if (!r['citation_' + f] && !r['source_' + f] && (!m || m === 'unknown')) return '';
+        const cls = m ? 'b-' + m : 'b-none';
+        return `<tr><td class="fname">${name}</td><td>${fieldVal(r, 'citation', f)}</td><td>${fieldVal(r, 'source', f)}</td>
+          <td><span class="badge ${cls}" title="${esc(just)}">${esc((m || 'n/a').replace('_', ' '))}</span></td></tr>`;
+      }).join('')}
+    </table>` : `<div class="nosrc">No matching source was found by the checker.</div>`;
+  return `<div class="card ${a.label ? 'lab-' + a.label : ''}" data-j="${j}">
+    <div class="chead"><span class="cid">#${esc(r.citation_id)}</span><div class="ctext">${fmtCitation(r.citation_text)}</div></div>
+    <div class="links">${links}</div>
+    ${body}
+    <div class="annot">
+      ${LABELS.map(l => `<button class="lab ${a.label === l.v ? 'on' : ''}" data-v="${l.v}">${l.t}<kbd>${l.k}</kbd></button>`).join('')}
+      <textarea data-note placeholder="Notes (e.g. correct reference, what's wrong)">${esc(a.note || '')}</textarea>
+    </div>
+  </div>`;
+}
+
+function setLabel(j, v) {
+  const r = papers[curPaper].cites[j], k = ckey(r);
+  const a = state.cites[k] || {};
+  a.label = a.label === v ? '' : v;
+  a.by = state.annotator; a.at = new Date().toISOString();
+  state.cites[k] = a; save();
+  const card = document.querySelector(`.card[data-j="${j}"]`);
+  card.className = 'card focus' + (a.label ? ' lab-' + a.label : '');
+  card.querySelectorAll('.lab').forEach(b => b.classList.toggle('on', b.dataset.v === a.label));
+  renderList();
+}
+
+function focusCite(j, scroll = true) {
+  curCite = j;
+  document.querySelectorAll('.card').forEach(c => c.classList.toggle('focus', +c.dataset.j === j));
+  const c = document.querySelector(`.card[data-j="${j}"]`);
+  if (c && scroll) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+function selectPaper(i) {
+  curPaper = i; curCite = 0; renderList(); renderPaper();
+  document.getElementById('main').scrollTop = 0;
+  const li = document.querySelector('.plist li.active'); if (li) li.scrollIntoView({ block: 'nearest' });
+}
+function stepPaper(d) {
+  const vis = visiblePapers().map(p => papers.indexOf(p)); if (!vis.length) return;
+  const pos = vis.indexOf(curPaper);
+  const next = pos < 0 ? vis[0] : vis[Math.max(0, Math.min(vis.length - 1, pos + d))];
+  if (next !== curPaper) selectPaper(next);
+}
+
+// ---------- export / import ----------
+function exportCSV() {
+  const extra = ['annotation_label', 'annotation_note', 'annotation_by', 'annotation_at', 'paper_verdict', 'paper_note'];
+  const lines = [header.concat(extra).map(csvCell).join(',')];
+  for (const r of rows) {
+    const a = state.cites[ckey(r)] || {}, p = state.papers[r.paper_id] || {};
+    lines.push(header.map(h => r[h]).concat([a.label, a.note, a.by, a.at, p.verdict, p.note]).map(csvCell).join(','));
+  }
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob), el = document.createElement('a');
+  const who = (state.annotator || 'annotations').replace(/\W+/g, '_');
+  el.href = url; el.download = `flagged_citations_annotated_${who}_${new Date().toISOString().slice(0, 10)}.csv`;
+  el.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function importAnnotations(text) {
+  const t = parseCSV(text.replace(/^﻿/, '')), h = t[0], idx = n => h.indexOf(n);
+  if (idx('annotation_label') < 0) { alert('This file has no annotation_label column.'); return; }
+  let n = 0;
+  for (const a of t.slice(1)) {
+    const g = n2 => a[idx(n2)] ?? '';
+    const k = g('paper_id') + '#' + g('citation_id');
+    if (g('annotation_label') || g('annotation_note')) {
+      state.cites[k] = { label: g('annotation_label'), note: g('annotation_note'), by: g('annotation_by'), at: g('annotation_at') }; n++;
+    }
+    if (g('paper_verdict') || g('paper_note')) state.papers[g('paper_id')] = { verdict: g('paper_verdict'), note: g('paper_note') };
+  }
+  save(); renderList(); renderPaper(); alert(`Imported ${n} citation annotations.`);
+}
+
+// ---------- events ----------
+const readFile = (f, cb) => { const fr = new FileReader(); fr.onload = () => cb(fr.result); fr.readAsText(f); };
+document.getElementById('csvFile').onchange = e => e.target.files[0] && readFile(e.target.files[0], ingest);
+document.getElementById('importFile').onchange = e => { e.target.files[0] && readFile(e.target.files[0], importAnnotations); e.target.value = ''; };
+document.getElementById('exportBtn').onclick = exportCSV;
+document.getElementById('annotator').oninput = e => { state.annotator = e.target.value; save(); };
+document.getElementById('q').oninput = renderList;
+document.getElementById('fstatus').onchange = renderList;
+document.getElementById('plist').onclick = e => { const li = e.target.closest('li[data-i]'); if (li) selectPaper(+li.dataset.i); };
+
+const main = document.getElementById('main');
+main.addEventListener('click', e => {
+  const card = e.target.closest('.card'); if (!card) return;
+  const j = +card.dataset.j;
+  const b = e.target.closest('.lab');
+  if (b) setLabel(j, b.dataset.v);
+  if (e.target.tagName !== 'A') focusCite(j, false);
+});
+main.addEventListener('input', e => {
+  const p = papers[curPaper];
+  if (e.target.matches('[data-note]')) {
+    const r = p.cites[+e.target.closest('.card').dataset.j], k = ckey(r);
+    state.cites[k] = Object.assign(state.cites[k] || {}, { note: e.target.value, by: state.annotator, at: new Date().toISOString() });
+    save();
+  } else if (e.target.matches('[data-pv]')) {
+    state.papers[p.id] = Object.assign(state.papers[p.id] || {}, { [e.target.dataset.pv]: e.target.value });
+    save(); if (e.target.tagName === 'SELECT') renderList();
+  }
+});
+main.addEventListener('change', e => { if (e.target.matches('select[data-pv]')) renderList(); });
+
+document.addEventListener('keydown', e => {
+  if (!papers.length || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.matches('input, textarea, select')) { if (e.key === 'Escape') e.target.blur(); return; }
+  const n = papers[curPaper].cites.length;
+  const lab = LABELS.find(l => l.k === e.key);
+  if (lab) { setLabel(curCite, lab.v); if (curCite < n - 1) focusCite(curCite + 1); }
+  else if (e.key === '0') { const a = state.cites[ckey(papers[curPaper].cites[curCite])]; if (a && a.label) setLabel(curCite, a.label); }
+  else if (e.key === 'j') focusCite(Math.min(n - 1, curCite + 1));
+  else if (e.key === 'k') focusCite(Math.max(0, curCite - 1));
+  else if (e.key === 'n') stepPaper(1);
+  else if (e.key === 'p') stepPaper(-1);
+  else return;
+  e.preventDefault();
+});
+
+const drop = document.getElementById('loader');
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) readFile(f, ingest); });
+
+// ---------- boot ----------
+load();
+</script>
+</body>
+</html>
