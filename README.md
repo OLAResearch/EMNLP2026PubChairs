@@ -78,3 +78,14 @@ It organizes the various proceedings, tracks, and volumes along with operational
 10. **Publication Status**
     
       * **Purpose:** Workflow tracking status indicating the current progress of the proceedings (e.g., *Draft*, *In Review*, *Camera-Ready Complete*, *Published*).
+
+## Proceedings Folder
+
+After you have 
+1. run `aclpubcheck` following https://github.com/acl-org/aclpubcheck, and 
+2. compiled the proceedings following the aclpub2 instructions: https://github.com/rycolab/aclpub2, 
+
+Please 
+1. Create a new folder in the shared Google Drive using the acronym in the `EMNLP 2026 Publication Management` spreadsheet of your track.  
+2. Use the acronym `<ACRONYM>_data.tgz`  to name the proceedings package. 
+3. Upload the final proceedings package of each track to the created proceedings folder in Google Drive.
