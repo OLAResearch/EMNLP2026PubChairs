@@ -24,7 +24,7 @@ We need some information from each committee during the publication process. In 
 - We will send information on preparing the volume to the contact person.
 
 ## Sponsorship Chairs
-- Send us the sponsors’ logos in one of these formats (PNG, PDF, EPS) (deadline: 30 May)
+- Send us the sponsors’ logos in one of these formats (PNG, PDF, EPS).
 
 ## Tutorial Chairs
 - Contact information of one tutorial chair (name, email). This chair will follow the publication process for the Tutorial volume. 

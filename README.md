@@ -27,3 +27,54 @@ Please refer to the information below.
 1. General information for chairs (workshop, demonstration, student research workshop, sponsorship, tutorial, general and program chairs): [`./instructions/instructions_for_chairs.md`](./instructions/instructions_for_chairs.md).
 2. Instructions for workshop chairs: [`./instructions/Instructions_for_workshop_organizers.md`](./instructions/Instructions_for_workshop_organizers.md).
 
+### EMNLP 2026 Publication Management
+
+This Google spreadsheet is a tracking and management sheet for the EMNLP 2026 conference publications. 
+It organizes the various proceedings, tracks, and volumes along with operational metadata required for publication.
+
+**Field Descriptions**
+
+1.  **Proceedings**
+    
+      * **Purpose:** The formal, full official title of the proceedings volume or publication track.
+      * **Example Values:**
+          * `Proceedings of the 2026 Conference on Empirical Methods in Natural Language Processing (Volume 1: Long Papers)`
+          * `Findings of the Association for Computational Linguistics: EMNLP 2026`
+
+2.  **Acronym**
+    
+      * **Purpose:** Short identifier or shorthand code used to distinguish each specific track/volume within submission platforms, file paths, or publication scripts.
+      * **Example Values:** `emnlp_long`, `emnlp_short`, `demos`, `student_ws`, `tutorial`, `industry_track`, `findings`.
+
+3.  **Google Drive link**
+    
+      * **Purpose:** Stores the URL or path to a shared folder or repository containing camera-ready files, PDFs, and materials for that track.
+
+4.  **Venue Id**
+    
+      * **Purpose:** Venue identifier code used in indexing systems (such as the ACL Anthology) to group related tracks under a parent venue.
+      * **Example Values:** `emnlp`, `findings`.
+
+5.  **Contact person**
+    
+      * **Purpose:** Name of the publication chair, track chair, or manager responsible for overseeing that specific volume's publication process.
+
+6.  **Contact e-mail**
+    
+      * **Purpose:** The email address of the assigned contact person for editorial queries or publication issues.
+
+7.  **ISBN**
+    
+      * **Purpose:** The International Standard Book Number assigned to the published proceedings volume for cataloging and archival reference. This number will be obtained in the later publication stage. 
+
+8.  **Self-correction?**
+    
+      * **Purpose:** A tracking flag (e.g., Yes/No) to indicate whether author self-corrections, post-accept errata, or camera-ready revisions are permitted or pending verification for that volume.
+
+9.  **Notes**
+    
+      * **Purpose:** Free-form text field for administrative notes, special formatting rules, submission deadlines, or status updates specific to a track.
+
+10. **Publication Status**
+    
+      * **Purpose:** Workflow tracking status indicating the current progress of the proceedings (e.g., *Draft*, *In Review*, *Camera-Ready Complete*, *Published*).
